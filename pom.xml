@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.1</version>
+		<version>4.2.0</version>
 		<relativePath/>
 	</parent>
 	<groupId>org.example</groupId>
@@ -28,11 +28,11 @@
 	</scm>
 	<properties>
 		<java.version>25</java.version>
-		<spring-ai.version>2.0.1</spring-ai.version>
-		<springdoc.version>3.1.1</springdoc.version>
-		<jacoco.version>0.8.15</jacoco.version>
+		<spring-ai.version>2.1.0</spring-ai.version>
+		<springdoc.version>3.2.1</springdoc.version>
+		<jacoco.version>0.8.16</jacoco.version>
 		<!-- Must match the swagger-core version used by springdoc; Spring AI brings older swagger-annotations jars -->
-		<swagger-core.version>2.2.55</swagger-core.version>
+		<swagger-core.version>2.2.56</swagger-core.version>
 	</properties>
 	<dependencies>
 		<dependency>
