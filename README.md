@@ -53,9 +53,9 @@ The service also reports what the design leaves open, in `gaps`:
 ## Tech stack
 
 - Java 25
-- Spring Boot 4.1.1 (Web MVC, Validation, Actuator)
-- Spring AI 2.0.1 with the OpenAI and Anthropic model starters
-- springdoc-openapi 3.1.1 (OpenAPI spec and Swagger UI)
+- Spring Boot 4.2.0 (Web MVC, Validation, Actuator)
+- Spring AI 2.1.0 with the OpenAI and Anthropic model starters
+- springdoc-openapi 3.2.1 (OpenAPI spec and Swagger UI)
 - Maven (wrapper included)
 
 ## Getting started
