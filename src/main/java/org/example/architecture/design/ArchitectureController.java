@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.architecture.render.ArchitectureMarkdown;
+import org.example.architecture.render.StructurizrDslRenderer;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class ArchitectureController {
 
 	static final String TEXT_MARKDOWN = "text/markdown";
+
+	static final String TEXT_PLAIN_UTF8 = "text/plain;charset=UTF-8";
 
 	private final ArchitectureAgent agent;
 
@@ -44,6 +47,20 @@ public class ArchitectureController {
 	@PostMapping(path = "/render", produces = TEXT_MARKDOWN)
 	public String render(@Valid @RequestBody ArchitectureModel model) {
 		return ArchitectureMarkdown.render(model.normalized());
+	}
+
+	@Operation(summary = "Design the architecture as Structurizr DSL",
+			description = "Returns the validated architecture model as a complete Structurizr DSL workspace for use with Structurizr Lite or CLI.")
+	@PostMapping(path = "/structurizr", produces = TEXT_PLAIN_UTF8)
+	public String designStructurizr(@RequestBody ArchitectureRequest request) {
+		return StructurizrDslRenderer.render(design(request));
+	}
+
+	@Operation(summary = "Render an edited model as Structurizr DSL",
+			description = "Takes a model returned by this API, after an architect has reviewed or edited it, and renders it as Structurizr DSL. The model is not called.")
+	@PostMapping(path = "/structurizr/render", produces = TEXT_PLAIN_UTF8)
+	public String renderStructurizr(@Valid @RequestBody ArchitectureModel model) {
+		return StructurizrDslRenderer.render(model.normalized());
 	}
 
 }

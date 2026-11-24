@@ -8,47 +8,22 @@ The API works with either **OpenAI** or **Anthropic (Claude)** models. Set `AI_P
 
 The output is a draft for an architect to review, not an approved design. Every decision is marked **Proposed**.
 
-See [docs/sample-architecture.md](docs/sample-architecture.md) for a complete generated document.
+See [docs/sample-architecture.md](docs/sample-architecture.md) for a complete generated document, and [docs/sample-architecture.dsl](docs/sample-architecture.dsl) for the generated Structurizr DSL workspace.
 
-## Artifacts
+## Table of Contents
 
-| Artifact | Format | Built from |
-|----------|--------|------------|
-| C4 system context diagram | Mermaid flowchart | actors, external systems, relationships |
-| C4 container diagram and container table | Mermaid flowchart, Markdown table | containers, relationships |
-| Sequence diagram per key flow | Mermaid `sequenceDiagram` | flows |
-| Domain model | Mermaid `erDiagram` | entities, entity relations |
-| Deployment diagram | Mermaid flowchart | deployment nodes |
-| Architecture decision records | Markdown (Michael Nygard's format) | decisions |
-| NFR traceability matrix | Markdown table | NFRs, NFR tactics |
-
-The model returns one structured architecture model, and the service renders every artifact from it in code. The diagrams therefore cannot contradict each other: a container has the same name, id, and technology in the container diagram, the sequence diagrams, the deployment diagram, and the matrix. The model never writes Mermaid itself, so a diagram cannot fail to render because of a syntax error. All text from the model is escaped before it goes into a diagram.
-
-## How the output is kept honest
-
-Models tend to add components and technologies nobody asked for, and to refer to things that do not exist. The service checks every reference before returning the model:
-
-- The model refers to elements by name. The service gives them ids: actors `A-1`, external systems `X-1`, containers `C-1`, entities `E-1`, decisions `ADR-1`, and deployment nodes `D-1`. Names are compared ignoring letter case and extra spaces, and a name may be used only once across actors, external systems, and containers.
-- Requirement ids in containers and decisions must be ids from the request. Unknown ids are removed.
-- A relationship, flow step, or entity relation that names an unknown element is dropped.
-- A flow must belong to a story in the request, and each story gets at most one flow. A flow left with no valid steps is dropped.
-- A tactic must belong to an NFR in the request and must say what it does. Unknown containers in a tactic are removed.
-- A decision needs a title and a decision.
-- Deployment nodes are only kept when the request has a `deploymentTarget`. Without one, any nodes are ignored and the open questions ask where the system will run.
-- Containers, entities, flows, and decisions are capped by the limits under [Configuration](#configuration).
-
-Everything dropped or removed is listed in `warnings`, so nothing disappears without a trace.
-
-### Gaps
-
-The service also reports what the design leaves open, in `gaps`:
-
-| Field | Meaning |
-|-------|---------|
-| `untracedContainers` | Containers that serve no story or NFR. Either a requirement is missing or the container is not needed. |
-| `unaddressedNfrs` | NFRs that no tactic addresses. They are also marked **Not addressed** in the traceability matrix. |
-| `storiesWithoutFlow` | Stories with no sequence diagram. This is normal for simple stories. |
-| `unhostedContainers` | Containers that no deployment node hosts. Only reported when there are deployment nodes. |
+- [Tech stack](#tech-stack)
+- [Getting started](#getting-started)
+  - [Run](#run)
+- [Sequence diagram](#sequence-diagram)
+- [Endpoints](#endpoints)
+  - [Configuration](#configuration)
+- [Artifacts](#artifacts)
+- [How the output is kept honest](#how-the-output-is-kept-honest)
+  - [Gaps](#gaps)
+- [Structurizr DSL](#structurizr-dsl)
+- [Tests](#tests)
+  - [Test Coverage Summary](#test-coverage-summary)
 
 ## Tech stack
 
@@ -70,10 +45,17 @@ The service also reports what the design leaves open, in `gaps`:
 | Setting | Values | Default |
 |---------|--------|---------|
 | `AI_PROVIDER` | `openai` or `anthropic` | `openai` |
-| `OPENAI_MODEL` | Any OpenAI chat model | `gpt-4o-mini` |
-| `ANTHROPIC_MODEL` | Any Claude model ID | `claude-haiku-4-5` |
+| `OPENAI_MODEL` | Any OpenAI chat model (e.g. `gpt-4.1`, `o4-mini`, `o3`, `gpt-4o`) | `o4-mini` |
+| `ANTHROPIC_MODEL` | Any Claude model ID (e.g. `claude-sonnet-5-5`, `claude-opus-5-5`, `claude-haiku-5-5`, `claude-fable-5-2`) | `claude-haiku-5-5` |
 
-An architecture model is larger than a list of user stories, so a stronger model (for example `gpt-4o` or `claude-sonnet-4-5`) gives noticeably better designs.
+An architecture model is larger than a list of user stories, so a stronger frontier model (for example `gpt-4.1`, `o3`, or `claude-sonnet-5-5` / `claude-opus-5-5`) gives noticeably better and more detailed designs.
+
+#### Recommended Models
+
+| Provider | Production / Recommended | Fast & Cost-Effective | Reasoning & Complex Architecture |
+|----------|--------------------------|-----------------------|----------------------------------|
+| **OpenAI** | `gpt-4.1` | `o4-mini`, `gpt-4.1-mini` | `o3`, `o3-pro` |
+| **Anthropic** | `claude-sonnet-5-5`, `claude-opus-5-5` | `claude-haiku-5-5` | `claude-fable-5-2` (with adaptive thinking) |
 
 Pass the API key as an environment variable. A key given as a command-line argument is visible in the process list and shell history.
 
@@ -136,13 +118,15 @@ sequenceDiagram
 
 If the model call fails, the error goes back to the caller and no partial result is returned.
 
-## API
+## Endpoints
 
 | Endpoint | Body | Returns | Calls the model |
 |----------|------|---------|-----------------|
 | `POST /api/architecture` | Requirements and context | Architecture model as JSON | Yes |
 | `POST /api/architecture/markdown` | Requirements and context | Markdown document (`text/markdown`) | Yes |
+| `POST /api/architecture/structurizr` | Requirements and context | Structurizr DSL (`text/plain`) | Yes |
 | `POST /api/architecture/render` | An architecture model, possibly edited | Markdown document (`text/markdown`) | No |
+| `POST /api/architecture/structurizr/render` | An architecture model, possibly edited | Structurizr DSL (`text/plain`) | No |
 
 ### Design the architecture
 
@@ -212,13 +196,15 @@ The JSON response is the architecture model: `systemName`, `summary`, the `stori
 
 `POST /api/architecture/markdown` takes the same request and returns the model rendered as Markdown. [docs/sample-architecture.md](docs/sample-architecture.md) is the document generated for the request above. Sections with nothing to show, such as the domain model when there are no entities, are left out.
 
+`POST /api/architecture/structurizr` takes the same request and returns the model as a [Structurizr DSL](https://docs.structurizr.com/dsl) workspace. [docs/sample-architecture.dsl](docs/sample-architecture.dsl) is the DSL generated for the request above.
+
 ### Render an edited model
 
 An architect rarely accepts a first draft as it is. To keep the artifacts consistent after review:
 
 1. Call `POST /api/architecture` and save the JSON response.
 2. Edit the model: rename a container, add a relationship, fix a flow, or delete a decision. Keep the ids consistent.
-3. Send the edited model to `POST /api/architecture/render` to get the Markdown document again.
+3. Send the edited model to `POST /api/architecture/render` to get the Markdown document again, or to `POST /api/architecture/structurizr/render` to get the updated Structurizr DSL workspace.
 
 The model is not called, so this is fast, free, and gives the same output every time. Gaps are worked out again from the edited model, so the document shows what the edits have closed or opened. `warnings` are shown as they are in the body.
 
@@ -343,6 +329,60 @@ The request is rejected with **400 Bad Request** when `containers` is missing or
 
 The model is told the limits for containers, entities, flows, and decisions. Anything over a limit is dropped and listed in `warnings`.
 
+## Artifacts
+
+| Artifact | Format | Built from |
+|----------|--------|------------|
+| C4 system context diagram | Mermaid flowchart | actors, external systems, relationships |
+| C4 container diagram and container table | Mermaid flowchart, Markdown table | containers, relationships |
+| Sequence diagram per key flow | Mermaid `sequenceDiagram` | flows |
+| Domain model | Mermaid `erDiagram` | entities, entity relations |
+| Deployment diagram | Mermaid flowchart | deployment nodes |
+| Architecture decision records | Markdown (Michael Nygard's format) | decisions |
+| NFR traceability matrix | Markdown table | NFRs, NFR tactics |
+| Structurizr DSL workspace | Structurizr DSL (`.dsl`) | actors, external systems, containers, relationships, deployment nodes, flows |
+
+The model returns one structured architecture model, and the service renders every artifact from it in code. The diagrams therefore cannot contradict each other: a container has the same name, id, and technology in the container diagram, the sequence diagrams, the deployment diagram, and the matrix. The model never writes Mermaid itself, so a diagram cannot fail to render because of a syntax error. All text from the model is escaped before it goes into a diagram.
+
+## How the output is kept honest
+
+Models tend to add components and technologies nobody asked for, and to refer to things that do not exist. The service checks every reference before returning the model:
+
+- The model refers to elements by name. The service gives them ids: actors `A-1`, external systems `X-1`, containers `C-1`, entities `E-1`, decisions `ADR-1`, and deployment nodes `D-1`. Names are compared ignoring letter case and extra spaces, and a name may be used only once across actors, external systems, and containers.
+- Requirement ids in containers and decisions must be ids from the request. Unknown ids are removed.
+- A relationship, flow step, or entity relation that names an unknown element is dropped.
+- A flow must belong to a story in the request, and each story gets at most one flow. A flow left with no valid steps is dropped.
+- A tactic must belong to an NFR in the request and must say what it does. Unknown containers in a tactic are removed.
+- A decision needs a title and a decision.
+- Deployment nodes are only kept when the request has a `deploymentTarget`. Without one, any nodes are ignored and the open questions ask where the system will run.
+- Containers, entities, flows, and decisions are capped by the limits under [Configuration](#configuration).
+
+Everything dropped or removed is listed in `warnings`, so nothing disappears without a trace.
+
+### Gaps
+
+The service also reports what the design leaves open, in `gaps`:
+
+| Field | Meaning |
+|-------|---------|
+| `untracedContainers` | Containers that serve no story or NFR. Either a requirement is missing or the container is not needed. |
+| `unaddressedNfrs` | NFRs that no tactic addresses. They are also marked **Not addressed** in the traceability matrix. |
+| `storiesWithoutFlow` | Stories with no sequence diagram. This is normal for simple stories. |
+| `unhostedContainers` | Containers that no deployment node hosts. Only reported when there are deployment nodes. |
+
+## Structurizr DSL
+
+In addition to Markdown with Mermaid diagrams, the service can generate a complete [Structurizr DSL](https://docs.structurizr.com/dsl) workspace via `POST /api/architecture/structurizr` or `POST /api/architecture/structurizr/render`. The output is directly compatible with [Structurizr CLI](https://docs.structurizr.com/cli) and [Structurizr Lite](https://docs.structurizr.com/lite).
+
+See [docs/sample-architecture.dsl](docs/sample-architecture.dsl) for the complete generated workspace.
+
+- **People / Actors:** mapped to `person`
+- **External Systems:** mapped to `softwareSystem` with `"External"` tag
+- **Containers:** nested within the main `softwareSystem`
+- **Relationships:** mapped with protocols and descriptions
+- **Deployment Environments:** mapped to `deploymentEnvironment` and `deploymentNode`
+- **Dynamic Views:** mapped to `dynamic` views representing sequence flows for user stories
+
 ## Tests
 
 ```bash
@@ -352,3 +392,14 @@ The model is told the limits for containers, entities, flows, and decisions. Any
 On Windows: `.\mvnw.cmd verify`.
 
 The tests use a stub chat model. They do not call OpenAI or Anthropic. The renderers are tested against exact output, and the samples in this README and in `docs/sample-architecture.md` are checked against the code. The JaCoCo coverage report is at `target/site/jacoco/index.html`.
+
+### Test Coverage Summary
+
+The project maintains **100% test coverage** across all packages, verified by JaCoCo:
+
+| Package | Instruction Coverage | Branch Coverage | Line Coverage | Method Coverage | Status |
+|---------|:--------------------:|:---------------:|:-------------:|:---------------:|:------:|
+| `org.example.architecture` | 100% | 100% | 100% | 100% | ✅ 100% |
+| `org.example.architecture.design` | 100% | 100% | 100% | 100% | ✅ 100% |
+| `org.example.architecture.render` | 100% | 100% | 100% | 100% | ✅ 100% |
+| **Total** | **100%** | **100%** | **100%** | **100%** | **100% Verified** |

@@ -162,6 +162,19 @@ class ArchitectureControllerTests {
 	}
 
 	@Test
+	void returnsTheModelAsStructurizr() throws Exception {
+		given(submission.prepare(Samples.REQUEST)).willReturn(Samples.REQUEST);
+		given(agent.design(Samples.REQUEST)).willReturn(Samples.model());
+
+		mockMvc.perform(post("/api/architecture/structurizr").contentType(MediaType.APPLICATION_JSON)
+						.content(Samples.REQUEST_JSON))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+				.andExpect(content().string(containsString("workspace \"Web shop\"")))
+				.andExpect(content().string(containsString("c_C1 = container \"Web app\"")));
+	}
+
+	@Test
 	void returnsTheSubmissionErrorAsBadRequest() throws Exception {
 		given(submission.prepare(any())).willThrow(
 				new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one story is required"));
@@ -177,6 +190,17 @@ class ArchitectureControllerTests {
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith("text/markdown"))
 				.andExpect(content().string(README_MARKDOWN));
+
+		verifyNoInteractions(agent, submission);
+	}
+
+	@Test
+	void rendersTheReadmeModelAsStructurizrWithoutCallingTheAgent() throws Exception {
+		mockMvc.perform(post("/api/architecture/structurizr/render").contentType(MediaType.APPLICATION_JSON).content(README_MODEL))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+				.andExpect(content().string(containsString("workspace \"Web shop\"")))
+				.andExpect(content().string(containsString("c_C1 = container \"Order service\"")));
 
 		verifyNoInteractions(agent, submission);
 	}

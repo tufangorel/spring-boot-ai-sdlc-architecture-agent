@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.example.architecture.render.ArchitectureMarkdown;
+import org.example.architecture.render.StructurizrDslRenderer;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,7 +23,14 @@ class ReadmeTests {
 
 	@Test
 	void sampleDocumentIsTheRenderedSampleModel() throws IOException {
-		assertThat(read("docs/sample-architecture.md")).isEqualTo(ArchitectureMarkdown.render(Samples.model()));
+		String doc = read("docs/sample-architecture.md");
+		assertThat(doc).startsWith(ArchitectureMarkdown.render(Samples.model()));
+		assertThat(doc).contains("## Structurizr DSL\n\n```dsl\n" + StructurizrDslRenderer.render(Samples.model()) + "```");
+	}
+
+	@Test
+	void sampleStructurizrDocumentIsTheRenderedSampleModel() throws IOException {
+		assertThat(read("docs/sample-architecture.dsl")).isEqualTo(StructurizrDslRenderer.render(Samples.model()));
 	}
 
 	private static String read(String file) throws IOException {
