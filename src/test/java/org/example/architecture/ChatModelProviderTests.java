@@ -26,7 +26,7 @@ class ChatModelProviderTests {
 			ChatModel chatModel = context.getBean(ChatModel.class);
 
 			assertThat(chatModel).isInstanceOf(OpenAiChatModel.class);
-			assertThat(chatModel.getDefaultOptions().getModel()).isEqualTo("gpt-4o-mini");
+			assertThat(chatModel.getDefaultOptions().getModel()).isEqualTo("o4-mini");
 			assertThat(context.getBeansOfType(AnthropicChatModel.class)).isEmpty();
 			assertThat(context.getBeansOfType(EmbeddingModel.class)).isEmpty();
 		}
