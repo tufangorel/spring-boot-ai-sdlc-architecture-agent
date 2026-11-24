@@ -31,6 +31,7 @@ See [docs/sample-architecture.md](docs/sample-architecture.md) for a complete ge
 - Spring Boot 4.2.0 (Web MVC, Validation, Actuator)
 - Spring AI 2.1.0 with the OpenAI and Anthropic model starters
 - springdoc-openapi 3.2.1 (OpenAPI spec and Swagger UI)
+- Structurizr DSL 6.2.3 parser in test scope (validates generated DSL workspaces)
 - Maven (wrapper included)
 
 ## Getting started
@@ -391,7 +392,7 @@ See [docs/sample-architecture.dsl](docs/sample-architecture.dsl) for the complet
 
 On Windows: `.\mvnw.cmd verify`.
 
-The tests use a stub chat model. They do not call OpenAI or Anthropic. The renderers are tested against exact output, and the samples in this README and in `docs/sample-architecture.md` are checked against the code. The JaCoCo coverage report is at `target/site/jacoco/index.html`.
+The tests use a stub chat model. They do not call OpenAI or Anthropic. The renderers are tested against exact output, generated Structurizr DSL is parsed with the official Java parser, and the samples in this README and in `docs/sample-architecture.md` are checked against the code. The JaCoCo coverage report is at `target/site/jacoco/index.html`.
 
 ### Test Coverage Summary
 

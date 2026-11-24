@@ -1,7 +1,10 @@
 package org.example.architecture.render;
 
 import java.util.List;
+import java.nio.file.Path;
 
+import com.structurizr.Workspace;
+import com.structurizr.dsl.StructurizrDslParserException;
 import org.example.architecture.design.ArchitectureModel;
 import org.example.architecture.design.ArchitectureModel.Container;
 import org.example.architecture.design.ArchitectureModel.DeploymentNode;
@@ -10,11 +13,17 @@ import org.example.architecture.design.ArchitectureModel.Flow;
 import org.example.architecture.design.ArchitectureModel.Relationship;
 import org.example.architecture.design.ArchitectureModel.Step;
 import org.example.architecture.design.Samples;
+import org.example.architecture.StructurizrDslParserTestSupport;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class StructurizrDslRendererTests {
+
+	@TempDir
+	Path tempDir;
 
 	@Test
 	void rendersTheSampleModelAsStructurizrDsl() {
@@ -96,6 +105,21 @@ class StructurizrDslRendererTests {
 	}
 
 	@Test
+	void generatedSampleDslParsesWithExpectedModelAndViews() throws Exception {
+		Workspace workspace = StructurizrDslParserTestSupport.parse(StructurizrDslRenderer.render(Samples.model()), tempDir);
+
+		assertThat(workspace.getModel().getSoftwareSystemWithName("Web shop")).isNotNull();
+		assertThat(workspace.getModel().getSoftwareSystemWithName("Web shop").getContainers())
+				.extracting("name").contains("Web app", "Order service", "Order database");
+		assertThat(workspace.getModel().getRelationships()).extracting("description")
+				.contains("Cancels orders", "Calls the order API", "Reads and writes orders", "Issues refunds");
+		assertThat(workspace.getViews().getSystemContextViews()).hasSize(1);
+		assertThat(workspace.getViews().getContainerViews()).hasSize(1);
+		assertThat(workspace.getViews().getDeploymentViews()).hasSize(1);
+		assertThat(workspace.getViews().getDynamicViews()).hasSize(1);
+	}
+
+	@Test
 	void handlesMinimalModelAndFallbacks() {
 		ModelBuilder builder = new ModelBuilder();
 		builder.systemName = " ";
@@ -160,6 +184,35 @@ class StructurizrDslRendererTests {
 		assertThat(dsl).doesNotContain("deploymentEnvironment");
 		assertThat(dsl).doesNotContain("deployment mainSystem");
 		assertThat(dsl).doesNotContain("dynamic mainSystem");
+	}
+
+	@Test
+	void generatedMinimalDslParsesWithoutDeploymentView() throws Exception {
+		ModelBuilder builder = new ModelBuilder();
+		builder.systemName = "Billing";
+		builder.containers = List.of(new Container("C-1", "Billing App", "Java", "Invoicing", List.of()));
+		Workspace workspace = StructurizrDslParserTestSupport.parse(StructurizrDslRenderer.render(builder.build()), tempDir);
+
+		assertThat(workspace.getModel().getSoftwareSystemWithName("Billing").getContainers()).hasSize(1);
+		assertThat(workspace.getViews().getDeploymentViews()).isEmpty();
+		assertThat(workspace.getViews().getDynamicViews()).isEmpty();
+	}
+
+	@Test
+	void generatedDslWithEscapedTextParses() throws Exception {
+		ModelBuilder builder = new ModelBuilder();
+		builder.systemName = "Billing \"Core\"";
+		builder.containers = List.of(new Container("C-1", "API \\ Gateway", "Java", "Handles \"billing\"", List.of()));
+		Workspace workspace = StructurizrDslParserTestSupport.parse(StructurizrDslRenderer.render(builder.build()), tempDir);
+
+		assertThat(workspace.getModel().getSoftwareSystemWithName("Billing \"Core\"")).isNotNull();
+		assertThat(workspace.getModel().getSoftwareSystemWithName("Billing \"Core\"").getContainers()).hasSize(1);
+	}
+
+	@Test
+	void parserRejectsInvalidDsl() {
+		assertThatThrownBy(() -> StructurizrDslParserTestSupport.parse("workspace { invalid", tempDir))
+				.isInstanceOf(StructurizrDslParserException.class);
 	}
 
 	@Test

@@ -1,14 +1,21 @@
 package org.example.architecture.design;
 
+import java.nio.file.Path;
+
+import com.structurizr.Workspace;
+import org.example.architecture.StructurizrDslParserTestSupport;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.server.ResponseStatusException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -20,6 +27,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ArchitectureController.class)
 class ArchitectureControllerTests {
+
+	@TempDir
+	Path tempDir;
 
 	static final String README_MODEL = """
 			{
@@ -166,12 +176,16 @@ class ArchitectureControllerTests {
 		given(submission.prepare(Samples.REQUEST)).willReturn(Samples.REQUEST);
 		given(agent.design(Samples.REQUEST)).willReturn(Samples.model());
 
-		mockMvc.perform(post("/api/architecture/structurizr").contentType(MediaType.APPLICATION_JSON)
+		MvcResult result = mockMvc.perform(post("/api/architecture/structurizr").contentType(MediaType.APPLICATION_JSON)
 						.content(Samples.REQUEST_JSON))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
 				.andExpect(content().string(containsString("workspace \"Web shop\"")))
-				.andExpect(content().string(containsString("c_C1 = container \"Web app\"")));
+				.andExpect(content().string(containsString("c_C1 = container \"Web app\"")))
+				.andReturn();
+		Workspace workspace = StructurizrDslParserTestSupport.parse(result.getResponse().getContentAsString(), tempDir);
+		assertThat(workspace.getModel().getSoftwareSystemWithName("Web shop").getContainers()).hasSize(3);
+		assertThat(workspace.getViews().getDeploymentViews()).hasSize(1);
 	}
 
 	@Test
@@ -196,11 +210,14 @@ class ArchitectureControllerTests {
 
 	@Test
 	void rendersTheReadmeModelAsStructurizrWithoutCallingTheAgent() throws Exception {
-		mockMvc.perform(post("/api/architecture/structurizr/render").contentType(MediaType.APPLICATION_JSON).content(README_MODEL))
+		MvcResult result = mockMvc.perform(post("/api/architecture/structurizr/render").contentType(MediaType.APPLICATION_JSON).content(README_MODEL))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
 				.andExpect(content().string(containsString("workspace \"Web shop\"")))
-				.andExpect(content().string(containsString("c_C1 = container \"Order service\"")));
+				.andExpect(content().string(containsString("c_C1 = container \"Order service\"")))
+				.andReturn();
+		Workspace workspace = StructurizrDslParserTestSupport.parse(result.getResponse().getContentAsString(), tempDir);
+		assertThat(workspace.getModel().getSoftwareSystemWithName("Web shop").getContainers()).hasSize(2);
 
 		verifyNoInteractions(agent, submission);
 	}
